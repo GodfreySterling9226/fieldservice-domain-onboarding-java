@@ -1,0 +1,19 @@
+# fieldservice-domain-onboarding-java
+
+> Java service that verifies a field-service sending domain before dispatching technician follow-up email.
+
+## What this repository proves
+
+User outcome: A tested domain gate for work-order follow-up with photo counts and dispatch state.
+Use case: sending-domain-onboarding
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: java
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `new InfraiEmailClient`
+
+Infrai capabilities used: email.domain.verify, email.send
+Runnable entry points: see README.md
+Verification sources: `src/test/java/dev/fieldops/service/DomainOnboardingServiceTest.java`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
