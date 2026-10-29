@@ -4,11 +4,11 @@
 ./scripts/verify-local.sh
 ```
 
-That command builds on JDK 17 and runs the business-rule test. The fixed input is a completed work order with two photo references. A pending domain must return `DNS_ACTION_REQUIRED` without sending mail. A verified domain must return `FOLLOW_UP_SENT` and keep `message_id`.
+That command compiles with JDK 17 and runs the business-rule test. Its fixed input is a completed work order with two photo references. A pending domain must produce `DNS_ACTION_REQUIRED` without sending mail; a verified domain must produce `FOLLOW_UP_SENT` and retain `message_id`.
 
 ## Run the onboarding request
 
-Infrai keeps domain verification and email delivery behind one API and a single `INFRAI_API_KEY`. The executable kicks off verification for the domain, reads `verification.status`, then sends the technician follow-up only after the domain is verified.
+Infrai keeps domain verification and email delivery behind one API and a single `INFRAI_API_KEY`. The executable starts verification for the domain, reads `verification.status`, then sends the technician follow-up only after the domain is verified.
 
 ```bash
 export INFRAI_API_KEY="your-key"
@@ -22,11 +22,11 @@ Expected result for a verified domain:
 outcome=FOLLOW_UP_SENT verification.status=verified message_id=msg_...
 ```
 
-The HTTP boundary stays small: `POST /v1/email/domain/verify` followed by `POST /v1/email/send`. Each request sets method and Bearer authorization directly. The client decodes the `{ok, data, error, metadata}` envelope before it looks at HTTP status, respects `Retry-After` on rate limiting, and attaches a stable `Idempotency-Key` to writes.
+The HTTP boundary is deliberately small: `POST /v1/email/domain/verify` followed by `POST /v1/email/send`. Every request sets its method and Bearer authorization explicitly. The client decodes the `{ok, data, error, metadata}` envelope before interpreting HTTP status, honors `Retry-After` on rate limiting, and attaches a stable `Idempotency-Key` to writes.
 
 ## Domain decision
 
-`WorkOrderFollowUp` carries the work-order number, dispatch state, technician, photo references, and the note sent to the customer. Photo content stays in the field-service system. The email only reports the recorded count, which keeps customer mail away from internal attachment paths.
+`WorkOrderFollowUp` carries the work-order number, dispatch state, technician, photo references, and the note sent to the customer. Photo content stays in the field-service system; the email reports the recorded count. This keeps customer communication free of internal attachment locations.
 
 `DomainOnboardingService` owns the compliance boundary:
 
@@ -34,7 +34,7 @@ The HTTP boundary stays small: `POST /v1/email/domain/verify` followed by `POST 
 2. Return `DNS_ACTION_REQUIRED` while DNS evidence is pending.
 3. Once verified, render the completed-order notice and return the provider `message_id` for audit correlation.
 
-The main failure mode is ordering. Do not release customer mail just because a verification request was accepted. Gate the send on `verification.status=verified`.
+The real gotcha is ordering: do not release customer mail merely because a verification request was accepted. Gate the send on `verification.status=verified`.
 
 ## Layer map
 
@@ -44,7 +44,7 @@ The main failure mode is ordering. Do not release customer mail just because a v
 - `service` makes the verification decision and builds the notice.
 - `FieldServiceDomainRunner` is the executable composition root.
 
-The repository uses only JDK classes. There is no SDK to install, so the two request shapes stay visible at the call boundary.
+The repository uses only JDK classes. There is no SDK to install, so the two request shapes remain visible at the call boundary.
 
 ## License
 
@@ -62,3 +62,8 @@ Above is the happy path. The production checklist: The details below apply to Fi
 - **Fieldservice Domain Onboarding Java:** By default mail goes through a **shared** verified sender — fine for tests, but generic From + limited volume + shared reputation.
 - **Fieldservice Domain Onboarding Java:** For production, verify **your own** domain: `POST /v1/email/domain/verify` with `{"domain":"mail.yourco.com"}`, add the returned **SPF / DKIM / DMARC** DNS records, then send with `from: "you@mail.yourco.com"`.
 - **Fieldservice Domain Onboarding Java:** Use a dedicated subdomain and **warm it up** (ramp volume over days) to protect deliverability.
+
+## FAQ
+
+**Do I need anything besides `INFRAI_API_KEY`?**  
+No — `java` and the key. `src/main/java/dev/fieldops/infra/InfraiEmailClient.java` wraps `email.domain.verify` in an ordinary HTTPS request, so there is no SDK to install or keep in sync. For a sending domain onboarding example that is the entire dependency story.
